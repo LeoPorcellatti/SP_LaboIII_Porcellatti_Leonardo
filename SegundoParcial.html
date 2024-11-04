@@ -1,0 +1,608 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="estilo.css">
+    <title>Segundo Parcial</title>
+</head>
+<script>
+    class Vehiculo{
+        id;
+        modelo;
+        anoFabricacion;
+        velMax;
+
+        constructor (id, modelo, anoFabricacion, velMax){
+            this.id = id;
+            this.modelo = modelo;
+            this.anoFabricacion = anoFabricacion;
+            this.velMax = velMax;
+        }
+
+        toString(){
+            return `id: ${this.id} - modelo: ${this.modelo} - anoFabricacion: ${this.anoFabricacion} - velMax: ${this.velMax}`;
+        }
+    }
+
+    class Auto extends Vehiculo{
+        cantidadPuertas;
+        asientos;
+
+        constructor(id, modelo, anoFabricacion, velMax, cantidadPuertas, asientos){
+            super(id, modelo, anoFabricacion, velMax);
+            this.cantidadPuertas = cantidadPuertas;
+            this.asientos = asientos;
+        }
+
+        toString(){
+            return `${super.toString()} - cantidadPuertas: ${this.cantidadPuertas} - asientos: ${this.asientos}`;
+        }
+    }
+
+    class Camion extends Vehiculo{
+        carga;
+        autonomia;
+
+        constructor(id, modelo, anoFabricacion, velMax, carga, autonomia){
+            super(id, modelo, anoFabricacion, velMax);
+            this.carga = carga;
+            this.autonomia = autonomia;
+        }
+
+        toString(){
+            return `${super.toString()} - carga: ${this.carga} - autonomia: ${this.autonomia}`;
+        }
+    }
+
+    function mostrarSpinner(){
+        document.getElementById("spinner").style.display = "flex";
+    }
+
+    function ocultarSpinner(){
+        document.getElementById("spinner").style.display = "none";
+    }
+
+    let modoOperacion = "agregar";
+
+    function cambiarFormulario(modo = "agregar"){
+        mostrarSpinner();
+        habilitarCampos();
+        modoOperacion = modo;
+
+        let formularioLista = document.getElementById("formLista");
+        let formularioAbm = document.getElementById("formABM");
+
+        setTimeout(()=>{
+            if(formularioLista.style.display === "none"){
+                formularioLista.style.display = "block";
+                formularioAbm.style.display = "none";
+                limpiarCampos();
+            } else {
+                formularioLista.style.display = "none";
+                formularioAbm.style.display = "block";
+                if(modo === "modificar"){
+                    document.getElementById("labelTituloAbm").textContent = "Modificar Vehiculo";
+                } else if (modo === "eliminar"){
+                    document.getElementById("labelTituloAbm").textContent = "Eliminar Vehiculo";
+                } else {
+                    document.getElementById("labelTituloAbm").textContent = "Agregar Vehiculo";
+                }
+            }
+
+            if(modo === "cancelar"){
+                limpiarCampos();
+            }
+
+            ocultarSpinner();
+        }, 500);        
+    }
+
+    let listaVehiculos = [];
+
+    function cargarVehiculos(){
+        mostrarSpinner();
+        var xhttp = new XMLHttpRequest();
+        let url = 'https://examenesutn.vercel.app/api/VehiculoAutoCamion';
+        xhttp.open("GET", url);
+        xhttp.send();
+        xhttp.onreadystatechange = function(){
+            if(xhttp.readyState === 4){    
+                ocultarSpinner();            
+                if(xhttp.status === 200){
+                    let jsonRespuesta = JSON.parse(xhttp.responseText);
+                    if(listaVehiculos.length === 0){
+                        listaVehiculos = jsonRespuesta.map(vehiculo =>{
+                            if(vehiculo.cantidadPuertas !== undefined && vehiculo.asientos !== undefined){
+                                return new Auto(vehiculo.id, vehiculo.modelo, vehiculo.anoFabricacion, vehiculo.velMax, vehiculo.cantidadPuertas, vehiculo.asientos);
+                            } else if (vehiculo.carga !== undefined && vehiculo.autonomia !== undefined){
+                                return new Camion(vehiculo.id, vehiculo.modelo, vehiculo.anoFabricacion, vehiculo.velMax, vehiculo.carga, vehiculo.autonomia);
+                            }
+                        });
+                    }
+                    mostrarListaVehiculos();
+                } else {
+                    alert ("No se pudo cargar: " + url + "\nError: " +xhttp.status);
+                }
+            }
+        }
+    }
+
+    function mostrarListaVehiculos(){
+        let tablaLista = document.getElementById("tbodyLista");
+        tablaLista.innerHTML = "";
+
+        listaVehiculos.forEach(vehiculo =>{
+            let fila = tablaLista.insertRow();
+
+            fila.insertCell().innerHTML = vehiculo.id;
+            fila.insertCell().innerHTML = vehiculo.modelo;
+            fila.insertCell().innerHTML = vehiculo.anoFabricacion;
+            fila.insertCell().innerHTML = vehiculo.velMax;
+            fila.insertCell().innerHTML = vehiculo instanceof Auto ? vehiculo.cantidadPuertas : "--";
+            fila.insertCell().innerHTML = vehiculo instanceof Auto ? vehiculo.asientos : "--";
+            fila.insertCell().innerHTML = vehiculo instanceof Camion ? vehiculo.carga : "--";            
+            fila.insertCell().innerHTML = vehiculo instanceof Camion ? vehiculo.autonomia : "--";
+            fila.insertCell().innerHTML = `<button class="btnLista" onclick="mostrarDatosAModificar(${vehiculo.id})">Modificar</button>`;            
+            fila.insertCell().innerHTML = `<button class="btnLista" onclick="mostrarDatosAEliminar(${vehiculo.id})">Eliminar</button>`;
+        })
+    }
+
+    async function enviarSolicitudPost(vehiculo){
+        try{
+            mostrarSpinner();
+            let url = 'https://examenesutn.vercel.app/api/VehiculoAutoCamion';
+            let respuesta = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type' : 'application/json'},
+                body: JSON.stringify(vehiculo)
+            });
+
+            if(respuesta.status === 200){
+                let contenido = await respuesta.json();
+                return contenido;
+            } else {
+                alert ("Error Status no esperado: " +respuesta.status);
+                return false;
+            }
+        } catch(error){
+            alert("Error al conectarse con " + url);
+            return false;
+        }
+    }
+
+    async function darAltaVehiculo(){
+        mostrarSpinner();
+        
+        let modelo = document.getElementById("txtModelo").value;
+        let anoFabricacion = document.getElementById("txtAnoFabricacion").value;
+        let velMax = document.getElementById("txtVelMax").value;
+        let cantidadPuertas;
+        let asientos;
+        let carga;
+        let autonomia;
+        if(!validarVehiculo(modelo, anoFabricacion, velMax)){
+            ocultarSpinner();
+            return;
+        }        
+
+        let vehiculo;
+
+        if(document.getElementById("slTipo").value === "Auto"){
+            cantidadPuertas = document.getElementById("txtCantidadPuertas").value;
+            asientos = document.getElementById("txtAsientos").value; 
+            
+            if(!validarAuto(cantidadPuertas, asientos)){
+                ocultarSpinner();
+                return;
+            }
+
+            vehiculo = {modelo, anoFabricacion, velMax, cantidadPuertas, asientos};
+            
+        } else if(document.getElementById("slTipo").value === "Camion"){
+            carga = document.getElementById("txtCarga").value;
+            autonomia = document.getElementById("txtAutonomia").value;
+            
+            if(!validarCamion(carga, autonomia)){
+                ocultarSpinner();
+                return;
+            }
+
+            vehiculo = {modelo, anoFabricacion, velMax, carga, autonomia};
+        }     
+        
+        let respuesta = await enviarSolicitudPost(vehiculo);
+
+        if(respuesta){
+            vehiculo.id = respuesta.id;
+
+            if(document.getElementById("slTipo").value === "Auto"){
+                let auto = new Auto(vehiculo.id, modelo, anoFabricacion, velMax, cantidadPuertas, asientos);
+                listaVehiculos.push(auto);
+            } else {
+                let camion = new Camion(vehiculo.id, modelo, anoFabricacion, velMax, carga, autonomia);
+                listaVehiculos.push(camion);
+            }
+
+            cambiarFormulario();
+            mostrarListaVehiculos();
+        } else {
+            ocultarSpinner();
+            cambiarFormulario();
+            alert ("No se pudo dar de alta");
+        }
+    }
+
+    function mostrarDatosAModificar(vehiculoId){
+        habilitarCampos();
+
+        let vehiculo;
+
+        listaVehiculos.forEach(v =>{
+            if(v.id === vehiculoId){
+                vehiculo = v;
+            }
+        })
+
+        if(vehiculo){
+            document.getElementById("txtId").value = vehiculo.id;
+            document.getElementById("txtModelo").value = vehiculo.modelo;
+            document.getElementById("txtAnoFabricacion").value = vehiculo.anoFabricacion;
+            document.getElementById("txtVelMax").value = vehiculo.velMax;
+            if(vehiculo instanceof Auto){
+                document.getElementById("slTipo").value = "Auto";
+                document.getElementById("txtCantidadPuertas").value = vehiculo.cantidadPuertas;
+                document.getElementById("txtAsientos").value = vehiculo.asientos;
+            } else if (vehiculo instanceof Camion){
+                document.getElementById("slTipo").value = "Camion";
+                document.getElementById("txtCarga").value = vehiculo.carga;
+                document.getElementById("txtAutonomia").value = vehiculo.autonomia;
+            }
+            cambiarFormulario("modificar");
+            document.getElementById("btnAceptar").onclick = () => modificarVehiculo(vehiculo);            
+        } else {
+            alert ("Vehiculo no encontrado");
+        }
+    }
+
+    function enviarSolicitudPut(vehiculo){
+        let url = 'https://examenesutn.vercel.app/api/VehiculoAutoCamion';
+        return fetch(url, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(vehiculo)
+        })
+        .then(respuesta =>{
+            if(respuesta.status === 200){
+                return true;
+            } else{
+                alert ("No se pudo cargar: " + url + "\nError: " +respuesta.status);
+                cambiarFormulario();
+                return false; 
+            }
+        })
+        .catch(error =>{
+            alert(error.message);
+            cambiarFormulario();
+            return false;
+        })
+    }
+
+
+
+    function modificarVehiculo(vehiculo){
+        mostrarSpinner();
+        enviarSolicitudPut(vehiculo)
+        .then(
+            respuesta => {
+                if(respuesta){
+                    let modelo = document.getElementById("txtModelo").value;
+                    let anoFabricacion = document.getElementById("txtAnoFabricacion").value;
+                    let velMax = document.getElementById("txtVelMax").value;
+                    
+                    if(!validarVehiculo(modelo, anoFabricacion, velMax)){
+                        ocultarSpinner();
+                        return;
+                    }
+
+                    let nuevoVehiculo;
+                    if(document.getElementById("slTipo").value === "Auto"){
+                        let cantidadPuertas = document.getElementById("txtCantidadPuertas").value;
+                        let asientos = document.getElementById("txtAsientos").value;
+
+                        if(!validarAuto(cantidadPuertas, asientos)){
+                            ocultarSpinner();
+                            return;
+                        }
+
+                        nuevoVehiculo = new Auto(vehiculo.id, modelo, anoFabricacion, velMax, cantidadPuertas, asientos);
+                    } else if(document.getElementById("slTipo").value ==="Camion"){
+                        let carga = document.getElementById("txtCarga").value;
+                        let autonomia = document.getElementById("txtAutonomia").value;
+
+                        if(!validarCamion(carga, autonomia)){
+                            ocultarSpinner();
+                            return;
+                        }
+
+                        nuevoVehiculo = new Camion(vehiculo.id, modelo, anoFabricacion, velMax, carga, autonomia);     
+                    }
+                    let index = listaVehiculos.findIndex(v => v.id === vehiculo.id);
+                    if (index !== -1) {
+                        listaVehiculos[index] = nuevoVehiculo;
+                    }
+                    
+                    cambiarFormulario();
+                    mostrarListaVehiculos();
+                    document.getElementById("btnAceptar").onclick = null;
+                } else {
+                    mostrarListaVehiculos();
+                    document.getElementById("btnAceptar").onclick = null;
+                }
+            }
+        )
+        .catch(error =>{
+            alert("Error: " + error.message);
+            ocultarSpinner();
+            cambiarFormulario();
+            mostrarListaVehiculos();
+        })   
+    }
+    
+
+    function mostrarDatosAEliminar(vehiculoId){
+
+        let vehiculo;
+        listaVehiculos.forEach(v =>{
+            if(v.id === vehiculoId){
+                vehiculo = v;
+            }
+        })
+
+        if(vehiculo){
+            document.getElementById("txtId").value = vehiculo.id;
+            document.getElementById("txtModelo").value = vehiculo.modelo;
+            document.getElementById("txtModelo").disabled = true;
+            document.getElementById("txtAnoFabricacion").value = vehiculo.anoFabricacion;
+            document.getElementById("txtAnoFabricacion").disabled = true;
+            document.getElementById("txtVelMax").value = vehiculo.velMax;
+            document.getElementById("txtVelMax").disabled = true;            
+            if(vehiculo instanceof Auto){
+                document.getElementById("slTipo").value = "Auto";
+                document.getElementById("slTipo").disabled = true;
+                document.getElementById("txtCantidadPuertas").value = vehiculo.cantidadPuertas;
+                document.getElementById("txtCantidadPuertas").disabled = true;
+                document.getElementById("txtAsientos").value = vehiculo.asientos;
+                document.getElementById("txtAsientos").disabled = true;
+            } else if (vehiculo instanceof Camion){
+                document.getElementById("slTipo").value = "Camion";
+                document.getElementById("slTipo").disabled = true;
+                document.getElementById("txtCarga").value = vehiculo.carga;
+                document.getElementById("txtCarga").disabled = true;
+                document.getElementById("txtAutonomia").value = vehiculo.autonomia;
+                document.getElementById("txtAutonomia").disabled = true;
+            }
+            cambiarFormulario("eliminar");
+            bloquearTodosLosCampos();
+            document.getElementById("btnAceptar").onclick = () => enviarSolicitudDelete(vehiculoId);
+        } else {
+            alert("Vehiculo no encontrado");
+        }
+    }
+
+    async function enviarSolicitudDelete(vehiculoId){
+        try{
+            mostrarSpinner();
+            let url = 'https://examenesutn.vercel.app/api/VehiculoAutoCamion';
+            let respuesta = await fetch (url, {
+                method: 'DELETE',
+                headers:{'Content-Type': 'application/json'},
+                body: JSON.stringify({id: vehiculoId})
+            });
+            
+            if(respuesta.status === 200){
+                if(confirm("¿Seguro que desea Eliminar este vehiculo?")){
+                    listaVehiculos = listaVehiculos.filter(v => v.id !== vehiculoId);
+                    cambiarFormulario();
+                    mostrarListaVehiculos();
+                } else {
+                    cambiarFormulario();
+                }                
+            } else{
+                cambiarFormulario();
+                mostrarListaVehiculos();                
+                alert("Error status no esperado: " + respuesta.status);
+            }
+        } catch(error){
+            alert("No pudo conectarse con " + url + "\nError: "+error.message);
+        }
+    }
+
+    function bloquearTodosLosCampos(){
+        document.getElementById("txtModelo").disabled = true;
+        document.getElementById("txtAnoFabricacion").disabled = true;
+        document.getElementById("txtVelMax").disabled = true;
+        document.getElementById("txtCantidadPuertas").disabled = true;
+        document.getElementById("txtAsientos").disabled = true;
+        document.getElementById("txtCarga").disabled = true;
+        document.getElementById("txtAutonomia").disabled = true;
+        document.getElementById("slTipo").disabled = true;
+    }
+
+
+    function habilitarCampos(){
+        let tipoSeleccionado = document.getElementById("slTipo").value;
+        document.getElementById("txtModelo").disabled = false;
+        document.getElementById("txtAnoFabricacion").disabled = false;
+        document.getElementById("txtVelMax").disabled = false;
+        document.getElementById("slTipo").disabled = false;
+
+        if(tipoSeleccionado === "Auto"){
+            document.getElementById("txtCantidadPuertas").disabled = false;
+            document.getElementById("txtAsientos").disabled = false;
+            document.getElementById("txtCarga").disabled = true;
+            document.getElementById("txtAutonomia").disabled = true;
+            document.getElementById("txtCarga").value = "";
+            document.getElementById("txtAutonomia").value = ""; 
+        } else if (tipoSeleccionado === "Camion"){
+            document.getElementById("txtCantidadPuertas").disabled = true;
+            document.getElementById("txtAsientos").disabled = true;
+            document.getElementById("txtCarga").disabled = false;
+            document.getElementById("txtAutonomia").disabled = false; 
+            document.getElementById("txtCantidadPuertas").value = "";
+            document.getElementById("txtAsientos").value = ""; 
+        }
+    }
+
+    function limpiarCampos(){
+        document.getElementById("txtId").value = "";
+        document.getElementById("txtModelo").value = "";
+        document.getElementById("txtAnoFabricacion").value = "";
+        document.getElementById("txtVelMax").value = "";
+        document.getElementById("txtCantidadPuertas").value = "";
+        document.getElementById("txtAsientos").value = "";
+        document.getElementById("txtCarga").value = "";
+        document.getElementById("txtAutonomia").value = "";
+    }
+
+    function validarVehiculo(modelo, anoFabricacion, velMax){
+        if(!modelo){
+            alert("Modelo incompleto");
+            return;
+        }
+
+        if(isNaN(anoFabricacion) || anoFabricacion <= 1985){
+            alert("anoFabricacion debe ser mayor a 1985");
+            return;
+        }
+
+        if(isNaN(velMax) || velMax <= 0){
+            alert("velMax debe ser mayor a 0");
+            return;
+        }
+
+        return true;
+    }
+
+    function validarAuto(cantidadPuertas, asientos){
+        if(isNaN(cantidadPuertas) || cantidadPuertas <= 2){
+            alert("cantidadPuertas debe ser mayor a 2");
+            return;
+        }
+
+        if(isNaN(asientos) || asientos <= 2){
+            alert("asientos debe ser mayor a 2");
+            return;
+        }
+
+        return true;
+    }
+
+    function validarCamion(carga, autonomia){
+        if(isNaN(carga) || carga <= 0){
+            alert("carga debe ser mayor a 0");
+            return;
+        }
+
+        if(isNaN(autonomia) || autonomia <= 0){
+            alert("autonomia debe ser mayor a 0");
+            return;
+        }
+
+        return true;
+    }
+
+    window.onload = function(){
+        document.getElementById("btnAgregarElemento").addEventListener("click", () => cambiarFormulario("agregar"));
+        document.getElementById("btnCancelar").addEventListener("click", () => cambiarFormulario("cancelar"));
+        document.getElementById("slTipo").addEventListener("change", habilitarCampos);
+        document.getElementById("btnAceptar").addEventListener("click", () => {
+            if (modoOperacion === "agregar") {
+                darAltaVehiculo(); 
+            }
+        });
+        cargarVehiculos();
+    }
+</script>
+<body>
+    <section id="formLista">
+
+        <div id="tituloLista">
+            <label id="lblLista">Formulario Lista</label>
+        </div>
+        <div>
+            <table id="tblLista">
+                <thead id="theadLista">
+                    <tr>
+                        <th>ID</th>
+                        <th>Modelo</th>
+                        <th>AnoFabricacion</th>
+                        <th>velMax</th>
+                        <th>cantidadPuertas</th>
+                        <th>Asientos</th>
+                        <th>Carga</th>
+                        <th>Autonomia</th>
+                        <th>Modificar</th>
+                        <th>Eliminar</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyLista">
+
+                </tbody>
+            </table>
+        </div>
+        <button class="btnAgregarElemento" id="btnAgregarElemento">Agregar Elemento</button>
+    </section>
+    <section id="formABM">
+        <div id="tituloAbm">
+            <label id="labelTituloAbm">Formulario ABM</label>
+        </div>
+        <div>
+            <label class="lblFormAbm">ID</label>
+            <input type="text" class ="txtAbm" id="txtId" disabled>
+        </div>
+        <div>
+            <label class="lblFormAbm">Modelo</label>
+            <input type="text" class ="txtAbm" id="txtModelo">
+        </div>
+        <div>
+            <label class="lblFormAbm">AnoFabricacion</label>
+            <input type="text" class ="txtAbm" id="txtAnoFabricacion">
+        </div>
+        <div>
+            <label class="lblFormAbm">VelMax</label>
+            <input type="text" class ="txtAbm" id="txtVelMax">
+        </div>
+        <div>
+            <label class="lblFormAbm">Tipo:</label>
+            <select class="select-box" id="slTipo">
+                <option value="Auto">Auto</option>
+                <option value="Camion">Camion</option>
+            </select>
+        </div>
+        <div>
+            <label class="lblFormAbm">cantidadPuertas</label>
+            <input type="text" class ="txtAbm" id="txtCantidadPuertas">
+        </div>
+        <div>
+            <label class="lblFormAbm">Asientos</label>
+            <input type="text" class ="txtAbm" id="txtAsientos">
+        </div>
+        <div>
+            <label class="lblFormAbm">Carga</label>
+            <input type="text" class ="txtAbm" id="txtCarga">
+        </div>
+        <div>
+            <label class="lblFormAbm">Autonomia</label>
+            <input type="text" class ="txtAbm" id="txtAutonomia">
+        </div>
+        <div>
+            <button class="btnAbm" id="btnAceptar">Aceptar</button>
+            <button class="btnAbm" id="btnCancelar">Cancelar</button>
+        </div>       
+    </section>
+    <section id="spinner">
+        <div class="loader"></div>
+    </section>
+</body>
+</html>
